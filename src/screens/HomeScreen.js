@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button } from 'react-native';
+import { StyleSheet, Text, View, Button, ScrollView } from 'react-native';
 import Display from '../components/Display';
 import Teclado from '../components/Teclado';
 import {
@@ -11,17 +11,34 @@ import {
 } from '../utils/calcular';
 import { carregar, salvar } from '../storage/historico';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const [expressao, setExpressao] = useState('');
   const [resultado, setResultado] = useState('');
   const [calculado, setCalculado] = useState(false); // acabou de apertar =
   const [memoria, setMemoria] = useState(0);
   const [historico, setHistorico] = useState([]);
 
-  // carrega o histórico salvo, uma vez, quando a tela abre
+  // Evolução 1: recarrega o histórico toda vez que a tela ganha foco.
+  // Sem isso, a Home continuaria com a lista antiga guardada no estado
+  // (as contas apagadas voltariam ao salvar uma conta nova).
   useEffect(() => {
-    carregar().then(setHistorico);
-  }, []);
+    carregar().then(setHistorico); // primeira abertura
+    const desinscrever = navigation.addListener('focus', () => {
+      carregar().then(setHistorico);
+    });
+    return desinscrever;
+  }, [navigation]);
+
+  // Evolução 3: o histórico devolve o resultado escolhido via route.params.
+  // Observamos também o "ts" (muda a cada toque); se observássemos só o valor,
+  // tocar na mesma conta duas vezes não dispararia o efeito de novo.
+  useEffect(() => {
+    if (route.params?.valor !== undefined) {
+      setExpressao(String(route.params.valor));
+      setResultado('');
+      setCalculado(false);
+    }
+  }, [route.params?.valor, route.params?.ts]);
 
   function limpar() {
     setExpressao('');
@@ -133,7 +150,12 @@ export default function HomeScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    // ScrollView: na web (ou em telas baixas) o teclado é maior que a janela,
+    // então a tela precisa rolar para mostrar as últimas linhas e o botão.
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+    >
       <Text style={styles.titulo}>Calculadora do Fukuta</Text>
 
       <Display expressao={expressao} resultado={resultado} memoria={memoria} />
@@ -145,13 +167,15 @@ export default function HomeScreen({ navigation }) {
           onPress={() => navigation.navigate('Historico', { historico })}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: '#4a0303' },
   container: {
-    flex: 1,
+    flexGrow: 1,
+    paddingBottom: 30,
     backgroundColor: '#4a0303',
     alignItems: 'center',
     justifyContent: 'flex-start',

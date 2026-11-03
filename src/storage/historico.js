@@ -10,3 +10,8 @@ export async function carregar() {
   const texto = await AsyncStorage.getItem(CHAVE);
   return texto ? JSON.parse(texto) : [];
 }
+
+// Evolução 1: apaga o histórico salvo no celular.
+export async function limpar() {
+  await AsyncStorage.removeItem(CHAVE);
+}
